@@ -184,21 +184,25 @@ Redis выполняет Lua-скрипт **целиком, не вклинив�
 
 ## Тесты
 
-Локально (нужен Python 3.12+):
+**Основная команда** — в Docker, ничего не нужно ставить локально, и это единственный
+вариант, где интеграционный тест работает с настоящим Redis:
 
 ```bash
-python -m venv .venv
-source .venv/bin/activate      # Windows: .venv\Scripts\activate
+docker compose run --rm api pytest
+```
+
+Локально (нужны Python 3.12+ и GNU make), одинаково на Linux, macOS и Windows:
+
+```bash
+python3 -m venv .venv          # Windows: python -m venv .venv
 make install
 make lint
 make test
 ```
 
-В Docker:
-
-```bash
-docker compose run --rm api pytest
-```
+Активировать venv не обязательно: `make` сам находит интерпретатор — из активного venv,
+из `./.venv` или `python3` из `PATH`. Другой интерпретатор можно передать явно:
+`make test PYTHON=/path/to/python`.
 
 Юнит-тесты используют `fakeredis[lua]` (Lua выполняется внутри fakeredis) и подменные
 часы, поэтому Redis для них не нужен. Один интеграционный тест конкурентности работает
