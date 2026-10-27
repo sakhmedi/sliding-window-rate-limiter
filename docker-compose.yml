@@ -1,6 +1,9 @@
 services:
   api:
     build: .
+    # Собирать образ при каждом `up`/`run` (с кэшем слоёв это быстро), чтобы
+    # `docker compose run --rm api pytest` всегда тестировал текущий код.
+    pull_policy: build
     ports:
       - "8000:8000"
     env_file:
@@ -9,6 +12,9 @@ services:
     environment:
       # Внутри compose Redis доступен по имени сервиса.
       REDIS_URL: redis://redis:6379/0
+      # Интеграционный тест на настоящем Redis в Docker обязателен: если Redis
+      # недоступен, тест падает, а не пропускается (локально он пропускается).
+      REQUIRE_REDIS: "1"
     depends_on:
       redis:
         condition: service_healthy
