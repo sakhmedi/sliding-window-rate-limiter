@@ -1,32 +1,40 @@
-# Какой Python использовать (по порядку):
-#   1. явно переданный: make test PYTHON=/path/to/python
-#   2. из активированного venv ($VIRTUAL_ENV);
-#   3. из ./.venv, даже если он не активирован (Linux/macOS или Windows);
-#   4. python3 из PATH.
-ifdef VIRTUAL_ENV
-  PYTHON ?= python
-else ifneq ($(wildcard .venv/bin/python),)
-  PYTHON ?= .venv/bin/python
-else ifneq ($(wildcard .venv/Scripts/python.exe),)
-  PYTHON ?= .venv/Scripts/python.exe
+# Make сам управляет виртуальным окружением ./.venv:
+# `make test` или `make lint` на чистом клоне создают .venv и ставят зависимости.
+# Повторная установка происходит, только если изменился pyproject.toml.
+
+# Системный Python, которым создаётся .venv (можно переопределить: make test BOOTSTRAP_PYTHON=python3.12).
+# На Windows и пути внутри venv другие.
+ifeq ($(OS),Windows_NT)
+  BOOTSTRAP_PYTHON ?= python
+  PYTHON := .venv/Scripts/python.exe
 else
-  PYTHON ?= python3
+  BOOTSTRAP_PYTHON ?= python3
+  PYTHON := .venv/bin/python
 endif
+
+# Файл-метка: «зависимости установлены». Make сравнивает его время с pyproject.toml.
+DEPS_STAMP := .venv/.deps-installed
 
 .PHONY: install lint format test up down
 
-install:
+$(DEPS_STAMP): pyproject.toml
+	$(BOOTSTRAP_PYTHON) -m venv .venv
+	$(PYTHON) -m pip install --upgrade pip
 	$(PYTHON) -m pip install -e ".[dev]"
+	$(PYTHON) -c "import pathlib; pathlib.Path('$(DEPS_STAMP)').touch()"
 
-lint:
+install: $(DEPS_STAMP)
+
+lint: $(DEPS_STAMP)
 	$(PYTHON) -m ruff check .
 	$(PYTHON) -m ruff format --check .
+	$(PYTHON) -m mypy --strict app tests
 
-format:
-	$(PYTHON) -m ruff check --fix .
+format: $(DEPS_STAMP)
 	$(PYTHON) -m ruff format .
+	$(PYTHON) -m ruff check --fix .
 
-test:
+test: $(DEPS_STAMP)
 	$(PYTHON) -m pytest
 
 up:
